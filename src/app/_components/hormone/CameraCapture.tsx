@@ -27,6 +27,75 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
   const [cameraVisible, setCameraVisible] = useAtom(cameraVisibleAtom);
   const [, setStatus] = useAtom(statusMessageAtom);
   const [showPermissionError, setShowPermissionError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [isOverlayError, setIsOverlayError] = useState(false);
+
+  // 에러 타입별 메시지 생성 함수
+  const getErrorMessage = useCallback(
+    (error: unknown): { message: string; showModal: boolean; isOverlay?: boolean } => {
+      if (error instanceof Error) {
+        const errorName = error.name;
+        const errorMessageText = error.message;
+
+        console.log("Error name:", errorName);
+        console.log("Error message:", errorMessageText);
+
+        // 권한 거부
+        if (errorName === "NotAllowedError" || errorName === "PermissionDeniedError") {
+          return {
+            message: "카메라 권한이 거부되었습니다. 브라우저 설정에서 카메라 권한을 허용해주세요.",
+            showModal: true,
+            isOverlay: false,
+          };
+        }
+        // 다른 앱이 카메라 사용 중
+        if (errorName === "NotReadableError" || errorName === "TrackStartError") {
+          return {
+            message: "카메라가 다른 앱에서 사용 중이거나 접근할 수 없습니다.",
+            showModal: true,
+            isOverlay: false,
+          };
+        }
+        // 오버레이 문제 (일부 브라우저)
+        if (
+          errorMessageText.includes("권한을 요청할 수 없음") ||
+          errorMessageText.includes("cannot request permission") ||
+          errorMessageText.includes("overlay") ||
+          errorMessageText.includes("다른 앱")
+        ) {
+          return {
+            message: "다른 앱의 대화창이나 오버레이를 모두 닫은 다음 다시 시도해 보세요.",
+            showModal: true,
+            isOverlay: true,
+          };
+        }
+        // 기타 에러
+        return {
+          message: `카메라 오류: ${errorMessageText}`,
+          showModal: true,
+          isOverlay: false,
+        };
+      }
+
+      if (typeof error === "object" && error !== null && "name" in error) {
+        const errorName = String(error.name);
+        if (errorName === "NotAllowedError") {
+          return {
+            message: "카메라 권한이 거부되었습니다.",
+            showModal: true,
+            isOverlay: false,
+          };
+        }
+      }
+
+      return {
+        message: "카메라를 사용할 수 없습니다.",
+        showModal: true,
+        isOverlay: false,
+      };
+    },
+    []
+  );
   const videoRef = useRef<HTMLVideoElement>(null);
   const guideCanvasRef = useRef<HTMLCanvasElement>(null);
   const analysisCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -365,13 +434,22 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
       }
     } catch (error) {
       console.error("Camera error:", error);
-      setShowPermissionError(true);
+      const { message, showModal, isOverlay } = getErrorMessage(error);
+
       setStatus({
-        text: "카메라 권한이 필요하거나 다른 앱의 오버레이가 열려있을 수 있습니다.",
+        text: message,
         type: "error",
       });
+
+      if (showModal) {
+        setErrorMessage(message);
+        setIsOverlayError(isOverlay ?? false);
+        setShowPermissionError(true);
+      } else {
+        onCloseRef.current?.();
+      }
     }
-  }, [setStream, setCameraVisible, setStatus, drawGuide, drawGuideLoop]);
+  }, [setStream, setCameraVisible, setStatus, drawGuide, drawGuideLoop, getErrorMessage]);
 
   useEffect(() => {
     // 컴포넌트 마운트 시 자동으로 카메라 시작
@@ -426,7 +504,12 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
   return (
     <div className="relative">
       {showPermissionError && (
-        <CameraPermissionError onClose={() => onCloseRef.current?.()} onRetry={handleRetry} />
+        <CameraPermissionError
+          errorMessage={errorMessage}
+          isOverlayError={isOverlayError}
+          onClose={() => onCloseRef.current?.()}
+          onRetry={handleRetry}
+        />
       )}
       {cameraVisible && (
         <>
