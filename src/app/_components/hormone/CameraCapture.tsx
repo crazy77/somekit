@@ -8,6 +8,7 @@ import {
   cameraVisibleAtom,
   statusMessageAtom,
 } from "~/stores/hormone";
+import { CameraPermissionError } from "./CameraPermissionError";
 
 const ROIS = {
   control: { x: 50, y: 20, w: 40, h: 60 },
@@ -25,10 +26,16 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
   const [stream, setStream] = useAtom(cameraStreamAtom);
   const [cameraVisible, setCameraVisible] = useAtom(cameraVisibleAtom);
   const [, setStatus] = useAtom(statusMessageAtom);
+  const [showPermissionError, setShowPermissionError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const guideCanvasRef = useRef<HTMLCanvasElement>(null);
   const analysisCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const onCloseRef = useRef(onClose);
   const [rafId, setRafId] = useState<number | null>(null);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!analysisCanvasRef.current) {
@@ -356,15 +363,15 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
           drawGuideLoop();
         };
       }
-    } catch {
+    } catch (error) {
+      console.error("Camera error:", error);
+      setShowPermissionError(true);
       setStatus({
-        text: "카메라 권한이 필요합니다!",
+        text: "카메라 권한이 필요하거나 다른 앱의 오버레이가 열려있을 수 있습니다.",
         type: "error",
       });
-      alert("카메라 권한이 필요합니다!");
-      onClose?.();
     }
-  }, [setStream, setCameraVisible, setStatus, onClose, drawGuide, drawGuideLoop]);
+  }, [setStream, setCameraVisible, setStatus, drawGuide, drawGuideLoop]);
 
   useEffect(() => {
     // 컴포넌트 마운트 시 자동으로 카메라 시작
@@ -411,8 +418,16 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
     };
   }, [stopCamera]);
 
+  const handleRetry = useCallback(() => {
+    setShowPermissionError(false);
+    void startCamera();
+  }, [startCamera]);
+
   return (
     <div className="relative">
+      {showPermissionError && (
+        <CameraPermissionError onClose={() => onCloseRef.current?.()} onRetry={handleRetry} />
+      )}
       {cameraVisible && (
         <>
           <div className="relative my-5 overflow-hidden rounded-2xl bg-black">
@@ -434,7 +449,7 @@ export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
                 className="h-14 w-14 rounded-full border-2 border-white bg-black/50 text-white backdrop-blur-sm"
                 onClick={() => {
                   stopCamera();
-                  onClose?.();
+                  onCloseRef.current?.();
                 }}
                 type="button"
               >
