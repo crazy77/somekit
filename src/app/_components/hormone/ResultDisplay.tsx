@@ -1,11 +1,14 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { analysisResultAtom, cameraVisibleAtom } from "~/stores/hormone";
+import { analysisResultAtom } from "~/stores/hormone";
 
-export function ResultDisplay() {
+interface ResultDisplayProps {
+  onRetry?: () => void;
+}
+
+export function ResultDisplay({ onRetry }: ResultDisplayProps) {
   const [result] = useAtom(analysisResultAtom);
-  const [, setCameraVisible] = useAtom(cameraVisibleAtom);
 
   if (!result) return null;
 
@@ -28,7 +31,7 @@ export function ResultDisplay() {
           : "에너지 충전!";
 
   const handleRetry = () => {
-    setCameraVisible(true);
+    onRetry?.();
   };
 
   return (

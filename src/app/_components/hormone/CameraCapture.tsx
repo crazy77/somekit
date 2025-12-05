@@ -18,9 +18,10 @@ const ROIS = {
 
 interface CameraCaptureProps {
   onCapture: (result: AnalysisResult | null) => void;
+  onClose?: () => void;
 }
 
-export function CameraCapture({ onCapture }: CameraCaptureProps) {
+export function CameraCapture({ onCapture, onClose }: CameraCaptureProps) {
   const [stream, setStream] = useAtom(cameraStreamAtom);
   const [cameraVisible, setCameraVisible] = useAtom(cameraVisibleAtom);
   const [, setStatus] = useAtom(statusMessageAtom);
@@ -198,7 +199,7 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
     };
   };
 
-  const drawGuide = () => {
+  const drawGuide = useCallback(() => {
     const video = videoRef.current;
     const canvas = guideCanvasRef.current;
     if (!video || !canvas) return;
@@ -235,20 +236,51 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
       },
     };
 
-    // 전체 스트립 영역 표시
+    // 전체 스트립 영역 표시 (AR 스타일)
     const stripX = Math.round(40 * scaleX);
     const stripY = Math.round(10 * scaleY);
     const stripW = Math.round(260 * scaleX);
     const stripH = Math.round(130 * scaleY);
 
+    // 외곽 프레임 (AR 느낌)
     ctx.strokeStyle = "#00ff00";
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 4;
+    ctx.setLineDash([]);
     ctx.strokeRect(stripX, stripY, stripW, stripH);
 
-    // 각 측정 영역 표시
+    // 코너 마커 (AR 느낌)
+    const cornerSize = 20;
+    ctx.lineWidth = 3;
+    // 좌상단
+    ctx.beginPath();
+    ctx.moveTo(stripX, stripY + cornerSize);
+    ctx.lineTo(stripX, stripY);
+    ctx.lineTo(stripX + cornerSize, stripY);
+    ctx.stroke();
+    // 우상단
+    ctx.beginPath();
+    ctx.moveTo(stripX + stripW - cornerSize, stripY);
+    ctx.lineTo(stripX + stripW, stripY);
+    ctx.lineTo(stripX + stripW, stripY + cornerSize);
+    ctx.stroke();
+    // 좌하단
+    ctx.beginPath();
+    ctx.moveTo(stripX, stripY + stripH - cornerSize);
+    ctx.lineTo(stripX, stripY + stripH);
+    ctx.lineTo(stripX + cornerSize, stripY + stripH);
+    ctx.stroke();
+    // 우하단
+    ctx.beginPath();
+    ctx.moveTo(stripX + stripW - cornerSize, stripY + stripH);
+    ctx.lineTo(stripX + stripW, stripY + stripH);
+    ctx.lineTo(stripX + stripW, stripY + stripH - cornerSize);
+    ctx.stroke();
+
+    // 각 측정 영역 표시 (AR 스타일)
     ctx.strokeStyle = "#00ff00";
     ctx.lineWidth = 2;
-    ctx.setLineDash([5, 5]);
+    ctx.setLineDash([8, 4]);
+    ctx.globalAlpha = 0.8;
 
     // 제어선 영역
     ctx.strokeRect(
@@ -292,20 +324,24 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
     );
 
     ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
 
-    // 안내 텍스트
+    // 안내 텍스트 (AR 스타일)
     ctx.fillStyle = "#00ff00";
-    ctx.font = `${Math.round(16 * scaleX)}px system-ui`;
-    ctx.fillText("면역크로마토그래피 스트립을 맞춰주세요", stripX, stripY - 10);
-  };
+    ctx.font = `bold ${Math.round(18 * scaleX)}px system-ui`;
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 3;
+    ctx.strokeText("면역크로마토그래피 스트립을 맞춰주세요", stripX, stripY - 15);
+    ctx.fillText("면역크로마토그래피 스트립을 맞춰주세요", stripX, stripY - 15);
+  }, []);
 
-  const drawGuideLoop = () => {
+  const drawGuideLoop = useCallback(() => {
     drawGuide();
     const id = requestAnimationFrame(drawGuideLoop);
     setRafId(id);
-  };
+  }, [drawGuide]);
 
-  const startCamera = async () => {
+  const startCamera = useCallback(async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
@@ -326,8 +362,14 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
         type: "error",
       });
       alert("카메라 권한이 필요합니다!");
+      onClose?.();
     }
-  };
+  }, [setStream, setCameraVisible, setStatus, onClose, drawGuide, drawGuideLoop]);
+
+  useEffect(() => {
+    // 컴포넌트 마운트 시 자동으로 카메라 시작
+    void startCamera();
+  }, [startCamera]);
 
   const capture = () => {
     setCameraVisible(false);
@@ -370,39 +412,52 @@ export function CameraCapture({ onCapture }: CameraCaptureProps) {
   }, [stopCamera]);
 
   return (
-    <div>
-      {!cameraVisible && (
-        <button
-          className="rounded-full bg-gradient-to-r from-[#ff6b6b] to-[#feca57] px-6 py-3 font-bold text-base text-white transition-transform active:scale-95"
-          onClick={startCamera}
-          type="button"
-        >
-          촬영 시작
-        </button>
-      )}
-
+    <div className="relative">
       {cameraVisible && (
-        <div className="relative my-5 overflow-hidden rounded-2xl bg-black">
-          <video
-            aria-label="카메라 미리보기"
-            autoPlay
-            className="h-[300px] w-full object-cover"
-            muted
-            playsInline
-            ref={videoRef}
-          />
-          <canvas
-            className="pointer-events-none absolute top-0 left-0 h-full w-full"
-            ref={guideCanvasRef}
-          />
-          <button
-            aria-label="사진 촬영"
-            className="-translate-x-1/2 absolute bottom-5 left-1/2 h-20 w-20 rounded-full border-4 border-[#ff6b6b] bg-white text-2xl"
-            onClick={capture}
-            type="button"
-          >
-            📸
-          </button>
+        <>
+          <div className="relative my-5 overflow-hidden rounded-2xl bg-black">
+            <video
+              aria-label="카메라 미리보기"
+              autoPlay
+              className="h-[400px] w-full object-cover"
+              muted
+              playsInline
+              ref={videoRef}
+            />
+            <canvas
+              className="pointer-events-none absolute top-0 left-0 h-full w-full"
+              ref={guideCanvasRef}
+            />
+            <div className="absolute right-0 bottom-20 left-0 flex justify-center gap-3">
+              <button
+                aria-label="닫기"
+                className="h-14 w-14 rounded-full border-2 border-white bg-black/50 text-white backdrop-blur-sm"
+                onClick={() => {
+                  stopCamera();
+                  onClose?.();
+                }}
+                type="button"
+              >
+                ✕
+              </button>
+              <button
+                aria-label="사진 촬영"
+                className="h-20 w-20 rounded-full border-4 border-white bg-white shadow-lg"
+                onClick={capture}
+                type="button"
+              >
+                <span className="text-3xl">📸</span>
+              </button>
+            </div>
+          </div>
+          <p className="mb-2 text-center text-gray-600 text-sm">
+            AR 가이드라인에 스트립을 맞춰주세요
+          </p>
+        </>
+      )}
+      {!cameraVisible && (
+        <div className="my-5 text-center">
+          <p className="mb-3 text-gray-600">카메라를 시작하는 중...</p>
         </div>
       )}
     </div>
