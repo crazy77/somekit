@@ -4,7 +4,29 @@
   "vcs": {
     "enabled": true,
     "useIgnoreFile": true,
-    "clientKind": "git",
+    "clientKind": "git"
+  },
+  "files": {
+    "ignoreUnknown": false,
+    "includes": [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.js",
+      "**/*.jsx",
+      "**/*.json",
+      "**/*.jsonc",
+      "!!**/node_modules",
+      "!!**/.next",
+      "!!**/dist",
+      "!!**/build"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100,
+    "lineEnding": "lf"
   },
   "assist": {
     "enabled": true,
@@ -13,57 +35,112 @@
       "source": {
         "recommended": true,
         "organizeImports": "on",
-        "useSortedAttributes": "on",
-      },
-    },
-  },
-  "formatter": {
-    "enabled": true,
+        "useSortedAttributes": "on"
+      }
+    }
   },
   "linter": {
     "enabled": true,
     "rules": {
       "recommended": true,
+      "a11y": {
+        "useKeyWithClickEvents": "error",
+        "useKeyWithMouseEvents": "error",
+        "noNoninteractiveElementToInteractiveRole": "error",
+        "noNoninteractiveTabindex": "error",
+        "useValidAriaProps": "error",
+        "useValidAriaValues": "error",
+        "useFocusableInteractive": "warn"
+      },
+      "correctness": {
+        "useHookAtTopLevel": "error",
+        "noUnusedVariables": "warn",
+        "noUnusedImports": "error"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "error",
+        "noAssignInExpressions": "error",
+        "noDoubleEquals": "error",
+        "noImplicitAnyLet": "error",
+        "noShadowRestrictedNames": "error"
+      },
+      "style": {
+        "noParameterAssign": "error",
+        "useConst": "error",
+        "useExportType": "warn",
+        "useImportType": "warn",
+        "useNodejsImportProtocol": "error",
+        "useNumberNamespace": "error",
+        "useTemplate": "warn"
+      },
+      "complexity": {
+        "noForEach": "off",
+        "noBannedTypes": "warn",
+        "noExcessiveCognitiveComplexity": "warn",
+        "noExcessiveNestedTestSuites": "warn",
+        "noUselessFragments": "warn",
+        "noUselessTypeConstraint": "error"
+      },
+      "performance": {
+        "noDelete": "error"
+      },
       "nursery": {
         "useSortedClasses": {
           "level": "warn",
           "fix": "safe",
           "options": {
-            "functions": ["clsx", "cva", "cn"],
-          },
-        },
-      },
-    },
-  },
-  "html": {
-    "formatter": {
-      "enabled": true,
-    },
+            "functions": ["clsx", "cva", "cn", "twMerge"],
+            "attributes": ["class", "className"]
+          }
+        }
+      }
+    }
   },
   "javascript": {
     "assist": {
-      "enabled": true,
+      "enabled": true
     },
     "formatter": {
-      "enabled": true,
-    },
-    "linter": {
-      "enabled": true,
-    },
+      "quoteStyle": "double",
+      "jsxQuoteStyle": "double",
+      "quoteProperties": "asNeeded",
+      "trailingCommas": "es5",
+      "semicolons": "always",
+      "arrowParentheses": "always",
+      "bracketSpacing": true,
+      "bracketSameLine": false
+    }
+  },
+  "json": {
+    "formatter": {
+      "enabled": true
+    }
   },
   "css": {
     "assist": {
-      "enabled": true,
+      "enabled": true
     },
     "formatter": {
-      "enabled": true,
+      "enabled": true
     },
     "linter": {
-      "enabled": true,
+      "enabled": true
     },
     "parser": {
       "cssModules": true,
-      "tailwindDirectives": true,
-    },
+      "tailwindDirectives": true
+    }
   },
+  "overrides": [
+    {
+      "includes": ["*.ts", "*.tsx"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useImportType": "off"
+          }
+        }
+      }
+    }
+  ]
 }
